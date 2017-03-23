@@ -1,0 +1,32 @@
+FROM phusion/baseimage
+
+MAINTAINER Ian Bell <ian.h.bell@gmail.com>
+
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+
+# Use baseimage-docker's init system.
+CMD ["/sbin/my_init"]
+
+RUN apt-get update --fix-missing && apt-get install -y wget bzip2 ca-certificates \
+    libglib2.0-0 libxext6 libsm6 libxrender1 \
+    git g++
+
+RUN echo 'export PATH=/opt/conda/bin:$PATH' > /etc/profile.d/conda.sh && \
+    wget --quiet https://repo.continuum.io/miniconda/Miniconda2-4.3.11-Linux-x86_64.sh -O ~/miniconda.sh && \
+    /bin/bash ~/miniconda.sh -b -p /opt/conda && \
+    rm ~/miniconda.sh
+
+ENV PATH /opt/conda/bin:$PATH
+
+RUN conda install -y pip && \
+    pip install buildbot-worker service_identity
+
+RUN buildbot-worker create-worker ~/worker ${IP} example-worker pass
+
+RUN mkdir /etc/service/bb-worker
+COPY start_buildbot.sh /etc/service/bb-worker/run
+RUN chmod +x /etc/service/bb-worker/run
+
+RUN apt-get remove -y g++ && apt -y autoremove
+
+EXPOSE 9989
